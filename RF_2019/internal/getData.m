@@ -127,13 +127,49 @@ switch MODE
         
         
         % write your own codes here
-        % ...
+        % [idx,centers] = kmeans(desc_sel,numBins);
+        vocab = vl_kmeans(desc_sel, numBins)
                   
         disp('Encoding Images...')
         % Vector Quantisation
         
         % write your own codes here
-        % ...
+        hists = {};
+        for c = 1:length(classList)
+            subFolderName = fullfile(folderName,classList{c});
+            imgList = dir(fullfile(subFolderName,'*.jpg'));
+            imgIdx{c} = randperm(length(imgList));
+            imgIdx_tr = imgIdx{c}(1:imgSel(1));
+            imgIdx_te = imgIdx{c}(imgSel(1)+1:sum(imgSel));
+            for i = 1:length(imgIdx_tr)
+                I = imread(fullfile(subFolderName,imgList(imgIdx_tr(i)).name));
+                if size(I,3) == 3
+                    I = rgb2gray(I); % PHOW work on gray scale image
+                end
+                
+                width = size(I, 2);
+                height = size(I, 1);
+
+                [frames, descrs] = vl_phow(single(I),'Sizes',PHOW_Sizes,'Step',PHOW_Step);
+                frames_value = frames{:};
+
+                [~, binsa] = min(vl_alldist2(vocab, single(descrs)), [], 1)
+                
+                numSpatialX = [2 4]
+                numSpatialY = [2 4]
+                for i = 1:length(numSpatialX)
+                    binsx = vl_binsearch(linspace(1, width, numSpatialX(i)+1), frames(1,:));
+                    binsy = vl_binsearch(linspace(1, height, numSpatialY(i)+1), frames(2,:));
+
+                    bins = sub2ind([numSpatialX(i), numSpatialY(i), numBins], binsy, binsx, binsa);
+                    hist_temp = zeros(numSpatialY(i) * numSpatialX(i) * numBins, 1);
+                    hist_temp = vl_binsum(hist_temp, ones(size(bins)), bins);
+                    hist_array{i} = single(hist_temp / sum(hist_temp));
+                end
+                hist_t = cat(1, hist_array{:});
+                hists{c,i} = hist_t / sum(hist_t);
+            end
+        end
   
         
         % Clear unused varibles to save memory
